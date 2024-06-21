@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+
+{% block full %}
+        <ul>
+            {% for data in all_data%}
+                <li> {{ data }}</li>
+            {% endfor %}
+        </ul>
+
+{% endblock %}
