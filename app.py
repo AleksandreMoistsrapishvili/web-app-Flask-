@@ -1,9 +1,25 @@
 from flask import Flask, render_template, redirect, url_for, request, flash
-import csv
+from flask_sqlalchemy import SQLAlchemy
 from main import main
-import time
+import csv
+
 app = Flask(__name__)
 app.secret_key = 'supersecretkey'
+
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db = SQLAlchemy(app)
+
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    email = db.Column(db.String(100), unique=True, nullable=False)
+
+    def __repr__(self):
+        return f'<User {self.name}>'
+
+with app.app_context():
+    db.create_all()
 
 def load_quotes(filename):
     with open(filename, newline='', encoding='utf-8') as file:
@@ -58,7 +74,6 @@ def full():
     all_data = load_all('quotes.csv')
     return render_template('full.html', all_data=all_data)
 
-
 @app.route('/register', methods=['GET'])
 def register_form():
     return render_template('register.html')
@@ -68,10 +83,19 @@ def register():
     name = request.form.get('name')
     email = request.form.get('email')
 
-    flash(f"წარმატებულად დარეგისტრირდა {email}")
+    existing_user = User.query.filter_by(email=email).first()
+    if existing_user:
+        flash('Email already exists. Please use a different email.', 'error')
+        return redirect(url_for('register_form'))
+
+    new_user = User(name=name, email=email)
+
+    db.session.add(new_user)
+    db.session.commit()
+
+    flash(f'Registration successful for {email}', 'success')
 
     return redirect(url_for('home'))
-
 
 if __name__ == '__main__':
     main()
