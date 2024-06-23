@@ -1,7 +1,9 @@
-from flask import Flask, render_template, redirect, url_for, request
+from flask import Flask, render_template, redirect, url_for, request, flash
 import csv
 from main import main
+import time
 app = Flask(__name__)
+app.secret_key = 'supersecretkey'
 
 def load_quotes(filename):
     with open(filename, newline='', encoding='utf-8') as file:
@@ -65,6 +67,8 @@ def register_form():
 def register():
     name = request.form.get('name')
     email = request.form.get('email')
+
+    flash(f"წარმატებულად დარეგისტრირდა {email}")
 
     return redirect(url_for('home'))
 
