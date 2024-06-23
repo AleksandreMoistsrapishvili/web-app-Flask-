@@ -1,6 +1,6 @@
 from flask import Flask, render_template, redirect, url_for, request, flash
 from flask_sqlalchemy import SQLAlchemy
-from main import main
+from werkzeug.security import generate_password_hash, check_password_hash
 import csv
 
 app = Flask(__name__)
@@ -10,10 +10,22 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
+# Custom Jinja2 options
+app.jinja_options = Flask.jinja_options.copy()
+app.jinja_options.update({
+    'block_start_string': '{%',
+    'block_end_string': '%}',
+    'variable_start_string': '{{',
+    'variable_end_string': '}}',
+    'comment_start_string': '{#',
+    'comment_end_string': '#}'
+})
+
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(100), unique=True, nullable=False)
+    password = db.Column(db.String(200), nullable=False)
 
     def __repr__(self):
         return f'<User {self.name}>'
@@ -82,13 +94,15 @@ def register_form():
 def register():
     name = request.form.get('name')
     email = request.form.get('email')
+    password = request.form.get('password')
 
     existing_user = User.query.filter_by(email=email).first()
     if existing_user:
         flash('Email already exists. Please use a different email.', 'error')
         return redirect(url_for('register_form'))
 
-    new_user = User(name=name, email=email)
+    hashed_password = generate_password_hash(password, method='sha256')
+    new_user = User(name=name, email=email, password=hashed_password)
 
     db.session.add(new_user)
     db.session.commit()
@@ -97,6 +111,23 @@ def register():
 
     return redirect(url_for('home'))
 
+@app.route('/login', methods=['GET'])
+def login_form():
+    return render_template('login.html')
+
+@app.route('/login', methods=['POST'])
+def login():
+    email = request.form.get('email')
+    password = request.form.get('password')
+
+    user = User.query.filter_by(email=email).first()
+
+    if user and check_password_hash(user.password, password):
+        flash('Login successful', 'success')
+        return redirect(url_for('home'))
+    else:
+        flash('Login failed. Check your email and password.', 'error')
+        return redirect(url_for('login_form'))
+
 if __name__ == '__main__':
-    main()
     app.run(debug=True)
